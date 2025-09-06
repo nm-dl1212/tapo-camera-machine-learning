@@ -23,6 +23,7 @@ camera = CamPtz(
     onvif_port=int(os.environ.get("ONVIF_PORT")),
 )
 
+
 """
 カメラ接続用のエンドポイント
 """
@@ -34,6 +35,7 @@ def connect():
         return jsonify({"status": "connected"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 
 @app.route("/disconnect", methods=["POST"])
 def disconnect():
@@ -88,21 +90,27 @@ def get_frame():
 ストリーミング用のエンドポイント
 """
 def gen_mjpeg():
-    """MJPEG ストリーム生成"""
+    """最新フレームだけ返すジェネレータ"""
     while True:
         frame = camera.read()
         if frame is None:
-            time.sleep(0.05)
+            time.sleep(0.1)
             continue
 
+        # 最新のフレームを JPEG に変換
         ret, jpeg = cv2.imencode('.jpg', frame)
         if not ret:
             continue
 
-        frame_bytes = jpeg.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-        time.sleep(0.03)  # 約30FPS
+        yield (
+            b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n' +
+            jpeg.tobytes() 
+            + b'\r\n'
+        )
+
+        # 軽く待機（14FPSくらいに制御）
+        time.sleep(0.1)
 
 
 @app.route("/video")
@@ -129,6 +137,19 @@ def face():
         return jsonify({"error": "Failed to encode frame"}), 500
 
     return Response(jpeg.tobytes(), mimetype='image/jpeg')
+
+
+@app.route('/')
+def index():
+    return """
+    <html>
+        <body>
+            <h2>Tapo C210 MJPEG Viewer</h2>
+            <img src="/video" width="640" />
+        </body>
+    </html>
+    """
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, threaded=True)
