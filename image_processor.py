@@ -11,7 +11,7 @@ def binarize_image(frame):
 
 
 """
-    MobileNet-SSD を用いた物体検出
+MobileNet-SSD を用いた物体検出
 """
 # クラスラベル
 CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
@@ -64,36 +64,9 @@ def detect_objects(frame, confidence_threshold=0.5):
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 smile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_smile.xml')
 
-def detect_emotion(frame):
-    """
-    OpenCV Haar Cascade を使った簡易表情検出
-    返り値: (label, confidence)
-    - label: "Smile" / "Neutral" / "No face detected"
-    - confidence: 1.0=笑顔、0.5=無表情、0.0=顔なし
-    """
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-    
-    if len(faces) == 0:
-        return ("No face detected", 0.0)
-    
-    # 最初の顔のみを判定
-    x, y, w, h = faces[0]
-    roi_gray = gray[y:y+h, x:x+w]
-    smiles = smile_cascade.detectMultiScale(roi_gray, 1.8, 20)
-    
-    label = "Smile" if len(smiles) > 0 else "Neutral"
-    score = 1.0 if label == "Smile" else 0.5
-    return label, score
-
-
 def detect_face(frame):
     """
     顔検出＋表情判定＋ラベル描画
-    入力:
-        frame: BGR画像 (numpy array)
-    出力:
-        result_frame: バウンディングボックスとラベルを描画した画像 (numpy array)
     """
     result_frame = frame.copy()
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
