@@ -2,8 +2,10 @@ import cv2
 import threading
 import os
 import time
-from flask import Flask, Response
+from flask import Flask, Response, jsonify
 from dotenv import load_dotenv
+
+from image_processor import binarize_image, detect_objects, detect_emotion, detect_face
 
 load_dotenv()
 RTSP_URL = os.getenv("RTSP_URL")
@@ -72,6 +74,7 @@ def index():
         <body>
             <h2>Tapo C210 MJPEG Viewer</h2>
             <img src="/video" width="640" />
+            <img src="/processed_snapshot" width="640" />
         </body>
     </html>
     """
@@ -108,14 +111,53 @@ def processed_snapshot():
     with frame_lock:
         frame = latest_frame.copy()
 
-    # TODO: ダミー処理: 2値化
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    _, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+    # 処理(別関数からインポート)
+    processed = detect_objects(frame)
 
     # JPEGに変換して返却
-    ret, jpeg = cv2.imencode('.jpg', binary)
+    ret, jpeg = cv2.imencode('.jpg', processed)
     if not ret:
         return "Failed to encode image", 500
+    return Response(jpeg.tobytes(), mimetype='image/jpeg')
+
+
+@app.route('/emotion')
+def emotion():
+    global latest_frame
+    if latest_frame is None:
+        return "No frame available", 503
+
+    # スレッド安全にコピー
+    with frame_lock:
+        frame = latest_frame.copy()
+
+    label, score = detect_emotion(frame)
+
+    return jsonify({
+        "emotion": label,
+        "confidence": round(score, 2)
+    })
+
+
+@app.route('/face')
+def face():
+    global latest_frame
+    if latest_frame is None:
+        return "No frame available", 503
+
+    # スレッド安全にコピー
+    with frame_lock:
+        frame = latest_frame.copy()
+
+    # 顔検出＋表情描画
+    result_frame = detect_face(frame)
+
+    # JPEG に変換
+    ret, jpeg = cv2.imencode('.jpg', result_frame)
+    if not ret:
+        return "Failed to encode image", 500
+
+    # JPEG バイトを返却
     return Response(jpeg.tobytes(), mimetype='image/jpeg')
 
 
