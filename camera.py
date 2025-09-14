@@ -1,4 +1,3 @@
-import rtsp
 from onvif import ONVIFCamera
 import time
 import cv2
@@ -106,5 +105,4 @@ class CamPtz(CamStream):
         self.moverequest.Velocity.PanTilt.y = y
         if self.is_ptz_active:
             self.ptz.Stop({"ProfileToken": self.moverequest.ProfileToken})
-        active = True
         self.ptz.ContinuousMove(self.moverequest)
