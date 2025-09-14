@@ -145,6 +145,26 @@ def face():
     return Response(jpeg.tobytes(), mimetype="image/jpeg")
 
 
+from image_processor import detect_face_mesh_image
+from flask import jsonify
+
+
+@app.route("/face_mesh_points", methods=["GET"])
+def face_mesh_points():
+    frame = camera.read()
+    if frame is None:
+        return jsonify({"error": "No frame available"}), 503
+
+    result_frame = detect_face_mesh_image(frame)
+
+    # JPEGエンコード
+    ret, jpeg = cv2.imencode(".jpg", result_frame)
+    if not ret:
+        return jsonify({"error": "Failed to encode frame"}), 500
+
+    return Response(jpeg.tobytes(), mimetype="image/jpeg")
+
+
 @app.route("/")
 def index():
     return """
@@ -158,4 +178,4 @@ def index():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, threaded=True)
+    app.run(host="0.0.0.0", port=5000, threaded=True, debug=True)
