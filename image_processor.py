@@ -23,7 +23,7 @@ CLASSES = ["background", "aeroplane", "bicycle", "bird", "boat",
 COLORS = np.random.uniform(0, 255, size=(len(CLASSES), 3))
 
 # モデルの読み込み
-net = cv2.dnn.readNetFromCaffe("MobileNetSSD_deploy.prototxt", "MobileNetSSD_deploy.caffemodel")
+net = cv2.dnn.readNetFromCaffe("pretrain_models/MobileNetSSD_deploy.prototxt", "pretrain_models/MobileNetSSD_deploy.caffemodel",)
 
 def detect_objects(frame, confidence_threshold=0.5):    
     # 入力画像のサイズ調整
