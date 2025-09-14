@@ -3,11 +3,12 @@ from flask import Flask, Response, request, jsonify
 import cv2
 import time
 
-from camera import CamPtz 
+from camera import CamPtz
 from image_processor import detect_face
 
 # 環境変数を.envから読み込む場合
 from dotenv import load_dotenv
+
 if os.path.exists(".env"):
     load_dotenv()
 
@@ -27,10 +28,12 @@ camera = CamPtz(
 """
 カメラ接続用のエンドポイント
 """
+
+
 @app.route("/connect", methods=["POST"])
 def connect():
     try:
-        camera.open()       # RTSP 接続開始、スレッドでフレーム更新
+        camera.open()  # RTSP 接続開始、スレッドでフレーム更新
         camera.setup_ptz()  # PTZ 設定
         return jsonify({"status": "connected"})
     except Exception as e:
@@ -49,6 +52,8 @@ def disconnect():
 """
 PTZ (パン・チルト・ズーム) 操作エンドポイント
 """
+
+
 @app.route("/ptz", methods=["POST"])
 def ptz():
     data = request.json
@@ -72,6 +77,8 @@ def ptz():
 """
 単一フレーム取得エンドポイント
 """
+
+
 @app.route("/frame", methods=["GET"])
 def get_frame():
     frame = camera.read()
@@ -79,16 +86,18 @@ def get_frame():
         return jsonify({"error": "No frame available"}), 503
 
     # JPEGエンコード
-    ret, jpeg = cv2.imencode('.jpg', frame)
+    ret, jpeg = cv2.imencode(".jpg", frame)
     if not ret:
         return jsonify({"error": "Failed to encode frame"}), 500
 
-    return Response(jpeg.tobytes(), mimetype='image/jpeg')
+    return Response(jpeg.tobytes(), mimetype="image/jpeg")
 
 
 """
 ストリーミング用のエンドポイント
 """
+
+
 def gen_mjpeg():
     """最新フレームだけ返すジェネレータ"""
     while True:
@@ -98,15 +107,12 @@ def gen_mjpeg():
             continue
 
         # 最新のフレームを JPEG に変換
-        ret, jpeg = cv2.imencode('.jpg', frame)
+        ret, jpeg = cv2.imencode(".jpg", frame)
         if not ret:
             continue
 
         yield (
-            b'--frame\r\n'
-            b'Content-Type: image/jpeg\r\n\r\n' +
-            jpeg.tobytes() 
-            + b'\r\n'
+            b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n"
         )
 
         # 軽く待機（14FPSくらいに制御）
@@ -117,11 +123,11 @@ def gen_mjpeg():
 def video_feed():
     return Response(
         gen_mjpeg(),
-        mimetype='multipart/x-mixed-replace; boundary=frame',
+        mimetype="multipart/x-mixed-replace; boundary=frame",
     )
 
 
-@app.route('/face')
+@app.route("/face")
 def face():
     frame = camera.read()
     if frame is None:
@@ -132,14 +138,14 @@ def face():
     result_frame = detect_face(frame)
 
     # JPEGエンコード
-    ret, jpeg = cv2.imencode('.jpg', result_frame)
+    ret, jpeg = cv2.imencode(".jpg", result_frame)
     if not ret:
         return jsonify({"error": "Failed to encode frame"}), 500
 
-    return Response(jpeg.tobytes(), mimetype='image/jpeg')
+    return Response(jpeg.tobytes(), mimetype="image/jpeg")
 
 
-@app.route('/')
+@app.route("/")
 def index():
     return """
     <html>

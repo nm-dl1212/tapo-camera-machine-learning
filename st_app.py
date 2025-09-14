@@ -58,5 +58,5 @@ st.markdown(
     f"""
     <img src="{BASE_URL}/video" width="640" />
     """,
-    unsafe_allow_html=True
+    unsafe_allow_html=True,
 )

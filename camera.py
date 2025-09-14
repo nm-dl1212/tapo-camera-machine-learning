@@ -1,8 +1,9 @@
 import rtsp
 from onvif import ONVIFCamera
 import time
-import cv2  
+import cv2
 import threading
+
 
 class CamStream(object):
     def __init__(self, **kwargs):
@@ -20,7 +21,9 @@ class CamStream(object):
         self.cap = None
 
     def open(self):
-        rtsp_url = f"rtsp://{self.user}:{self.pwd}@{self.ipaddr}:{self.port}/{self.stream}"
+        rtsp_url = (
+            f"rtsp://{self.user}:{self.pwd}@{self.ipaddr}:{self.port}/{self.stream}"
+        )
         self.cap = cv2.VideoCapture(rtsp_url)
         if not self.cap.isOpened():
             raise RuntimeError("Failed to open RTSP stream")
@@ -62,7 +65,6 @@ class CamPtz(CamStream):
         self.ptz = None
         self.is_ptz_active = False
 
-
     def setup_ptz(self):
         mycam = ONVIFCamera(self.ipaddr, self.onvif_port, self.user, self.pwd)
         # Create media service object
@@ -72,28 +74,37 @@ class CamPtz(CamStream):
         # Get target profile
         media_profile = media.GetProfiles()[0]
         # Get PTZ configuration options for getting continuous move range
-        request = self.ptz.create_type('GetConfigurationOptions')
+        request = self.ptz.create_type("GetConfigurationOptions")
         request.ConfigurationToken = media_profile.PTZConfiguration.token
         ptz_configuration_options = self.ptz.GetConfigurationOptions(request)
 
-        self.moverequest = self.ptz.create_type('ContinuousMove')
+        self.moverequest = self.ptz.create_type("ContinuousMove")
         self.moverequest.ProfileToken = media_profile.token
         if self.moverequest.Velocity is None:
-            self.moverequest.Velocity = self.ptz.GetStatus({'ProfileToken': media_profile.token}).Position
+            self.moverequest.Velocity = self.ptz.GetStatus(
+                {"ProfileToken": media_profile.token}
+            ).Position
 
         # Get range of pan and tilt
         # NOTE: X and Y are velocity vector
-        self.XMAX = ptz_configuration_options.Spaces.ContinuousPanTiltVelocitySpace[0].XRange.Max
-        self.XMIN = ptz_configuration_options.Spaces.ContinuousPanTiltVelocitySpace[0].XRange.Min
-        self.YMAX = ptz_configuration_options.Spaces.ContinuousPanTiltVelocitySpace[0].YRange.Max
-        self.YMIN = ptz_configuration_options.Spaces.ContinuousPanTiltVelocitySpace[0].YRange.Min
+        self.XMAX = ptz_configuration_options.Spaces.ContinuousPanTiltVelocitySpace[
+            0
+        ].XRange.Max
+        self.XMIN = ptz_configuration_options.Spaces.ContinuousPanTiltVelocitySpace[
+            0
+        ].XRange.Min
+        self.YMAX = ptz_configuration_options.Spaces.ContinuousPanTiltVelocitySpace[
+            0
+        ].YRange.Max
+        self.YMIN = ptz_configuration_options.Spaces.ContinuousPanTiltVelocitySpace[
+            0
+        ].YRange.Min
         return
-
 
     def move(self, x, y):
         self.moverequest.Velocity.PanTilt.x = x
         self.moverequest.Velocity.PanTilt.y = y
         if self.is_ptz_active:
-            self.ptz.Stop({'ProfileToken': self.moverequest.ProfileToken})
+            self.ptz.Stop({"ProfileToken": self.moverequest.ProfileToken})
         active = True
         self.ptz.ContinuousMove(self.moverequest)
