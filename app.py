@@ -145,17 +145,17 @@ def face():
     return Response(jpeg.tobytes(), mimetype="image/jpeg")
 
 
-from image_processor import detect_face_mesh_image
+from image_processor import detect_face_landmark
 from flask import jsonify
 
 
-@app.route("/face_mesh_points", methods=["GET"])
-def face_mesh_points():
+@app.route("/face_points", methods=["GET"])
+def face_points():
     frame = camera.read()
     if frame is None:
         return jsonify({"error": "No frame available"}), 503
 
-    result_frame = detect_face_mesh_image(frame)
+    result_frame = detect_face_landmark(frame)
 
     # JPEGエンコード
     ret, jpeg = cv2.imencode(".jpg", result_frame)
