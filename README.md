@@ -9,5 +9,5 @@ wget https://sourceforge.net/projects/ip-cameras-for-vlc/files/MobileNetSSD_depl
 
 # 起動
 ```bash
-uv run app.py
+uv run src/app.py
 ```
