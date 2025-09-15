@@ -131,7 +131,7 @@ def video_feed():
 
 """
 from image_processor.emotion import detect_face_with_emotion
-from image_processor.mesh_points import detect_face_landmark
+from image_processor.mesh_points import detect_face_landmark, determine_face_orientation, is_eyes_closed, is_mouth_closed, _detect_face_mesh
 
 @app.route("/face")
 def face():
@@ -149,6 +149,32 @@ def face():
         return jsonify({"error": "Failed to encode frame"}), 500
 
     return Response(jpeg.tobytes(), mimetype="image/jpeg")
+
+
+@app.route("/face_status", methods=["GET"])
+def face_status():
+    frame = camera.read()
+    if frame is None:
+        return jsonify({"error": "No frame available"}), 503
+
+    results = _detect_face_mesh(frame)
+    if results.multi_face_landmarks:
+        face_landmarks = results.multi_face_landmarks[0]
+        width, height = frame.shape[1], frame.shape[0]
+        orientation = determine_face_orientation(face_landmarks, width, height)
+        eyes = is_eyes_closed(face_landmarks, width, height)
+        mouth = is_mouth_closed(face_landmarks, width, height)
+        data = {
+            "orientation": orientation,
+            "eyes_closed": eyes["eyes_closed"],
+            "left_eye_ear": eyes["left_eye_ear"],
+            "right_eye_ear": eyes["right_eye_ear"],
+            "mouth_closed": mouth["mouth_closed"],
+            "mouth_opening_ratio": mouth["opening_ratio"],
+        }
+        return jsonify(data)
+    else:
+        return jsonify({"landmarks_present": False})
 
 
 
