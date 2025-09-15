@@ -172,52 +172,23 @@ def detect_face_mesh_image(frame):
     if results.multi_face_landmarks:
         h, w = frame.shape[:2]
 
+        # 左目
         LEFT_EYE_LOWER = {263, 249, 390, 373, 374, 380, 381, 382}
         LEFT_EYE_UPPER = {362, 398, 384, 385, 386, 387, 388, 466}
-
+        
+        # 右目
         RIGHT_EYE_LOWER = {33, 7, 163, 144, 145, 153, 154, 155}
         RIGHT_EYE_UPPER = {133, 173, 157, 158, 159, 160, 161, 246}
-
+        
+        # 鼻、口、顔の輪郭
         NOSE = {1, 2, 4, 168, 6, 197, 195, 5}
         MOUTH = {61, 291, 13, 14}
-        FACE_CONTOUR = {
-            10,
-            338,
-            297,
-            332,
-            284,
-            251,
-            389,
-            356,
-            454,
-            323,
-            361,
-            288,
-            397,
-            365,
-            379,
-            378,
-            400,
-            377,
-            152,
-            148,
-            176,
-            149,
-            150,
-            136,
-            172,
-            58,
-            132,
-            93,
-            234,
-            127,
-            162,
-            21,
-            54,
-            103,
-            67,
-            109,
-        }
+        FACE_CONTOUR = (
+            {10, 338, 297, 332, 284, 251, 389, 356, 454}  # 左上
+            | {323, 361, 288, 397, 365, 379, 378, 400, 377}  # 左下
+            | {152, 148, 176, 149, 150, 136, 172, 58, 132}  # 右下
+            | {93, 234, 127, 162, 21, 54, 103, 67, 109}  # 右上
+        )
 
         for face_landmarks in results.multi_face_landmarks:
             for idx, landmark in enumerate(face_landmarks.landmark):
@@ -225,7 +196,6 @@ def detect_face_mesh_image(frame):
                     color = (0, 255, 0)
                 elif idx in LEFT_EYE_LOWER:
                     color = (0, 255, 255)
-
                 elif idx in RIGHT_EYE_UPPER:
                     color = (0, 255, 0)
                 elif idx in RIGHT_EYE_LOWER:
@@ -241,6 +211,6 @@ def detect_face_mesh_image(frame):
                     continue
                 x = int(landmark.x * w)
                 y = int(landmark.y * h)
-                cv2.circle(vis, (x, y), 5, color, -1)
+                cv2.circle(vis, (x, y), 3, color, -1)
     face_mesh.close()
     return vis
