@@ -47,4 +47,3 @@ def detect_face_with_emotion(frame):
         )
 
     return result_frame
-

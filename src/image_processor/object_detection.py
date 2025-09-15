@@ -80,5 +80,3 @@ def detect_objects(frame, confidence_threshold=0.5):
             )
 
     return frame
-
-

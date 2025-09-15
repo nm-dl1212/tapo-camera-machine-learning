@@ -12,7 +12,7 @@ LEFT_EYE_UPPER = {362, 386}  # {362, 398, 384, 385, 386, 387, 388, 466}
 RIGHT_EYE_LOWER = {33, 145}  # {33, 7, 163, 144, 145, 153, 154, 155}
 RIGHT_EYE_UPPER = {133, 159}  # {133, 173, 157, 158, 159, 160, 161, 246}
 NOSE = {1, 2, 4, 168, 6, 197, 195, 5}
-MOUTH = {13, 14}  # {61, 291, 13, 14}
+MOUTH = {61, 291, 13, 14}
 FACE_CONTOUR = (
     {10, 338, 297, 332, 284, 251, 389, 356, 454}  # 左上
     | {323, 361, 288, 397, 365, 379, 378, 400, 377}  # 左下
@@ -58,7 +58,7 @@ def determine_face_orientation(landmarks, image_width, image_height):
     right_center_x = sum(p[0] for p in right_pts) / len(right_pts)
     right_center_y = sum(p[1] for p in right_pts) / len(right_pts)
 
-    # 眉間の位置を取得 
+    # 眉間の位置を取得
     eye_dist = math.hypot(
         left_center_x - right_center_x, left_center_y - right_center_y
     )
@@ -108,25 +108,29 @@ def is_eyes_closed(landmarks, image_width, image_height, threshold=0.20):
     # 左目
     ## 上まぶたの中心座標
     lm = landmarks.landmark[386]
-    eye_left_upper=[lm.x * w, lm.y * h]
-    
+    eye_left_upper = [lm.x * w, lm.y * h]
+
     ## 下まぶたの中心座標
     lm = landmarks.landmark[374]
-    eye_left_lower=[lm.x * w, lm.y * h]
+    eye_left_lower = [lm.x * w, lm.y * h]
 
     ## 2点距離を計算
-    left_height = math.hypot(eye_left_upper[0] - eye_left_lower[0], eye_left_upper[1] - eye_left_lower[1])   
+    left_height = math.hypot(
+        eye_left_upper[0] - eye_left_lower[0], eye_left_upper[1] - eye_left_lower[1]
+    )
 
     ## 目頭の中心座標
     lm = landmarks.landmark[133]
-    eye_left_inner=[lm.x * w, lm.y * h]
+    eye_left_inner = [lm.x * w, lm.y * h]
 
     ## 目尻の中心座標
     lm = landmarks.landmark[33]
-    eye_left_outer=[lm.x * w, lm.y * h]
-    
+    eye_left_outer = [lm.x * w, lm.y * h]
+
     ## 2点距離を計算
-    left_width = math.hypot(eye_left_inner[0] - eye_left_outer[0], eye_left_inner[1] - eye_left_outer[1])
+    left_width = math.hypot(
+        eye_left_inner[0] - eye_left_outer[0], eye_left_inner[1] - eye_left_outer[1]
+    )
 
     ## アスペクト比
     left_ear = left_height / left_width if left_width > 1e-6 else 0.0
@@ -134,29 +138,32 @@ def is_eyes_closed(landmarks, image_width, image_height, threshold=0.20):
     # 右目
     ## 上まぶたの中心座標
     lm = landmarks.landmark[159]
-    eye_right_upper=[lm.x * w, lm.y * h]
-    
+    eye_right_upper = [lm.x * w, lm.y * h]
+
     ## 下まぶたの中心座標
     lm = landmarks.landmark[145]
-    eye_right_lower=[lm.x * w, lm.y * h]
-    
+    eye_right_lower = [lm.x * w, lm.y * h]
+
     ## 2点距離を計算
-    right_height = math.hypot(eye_right_upper[0] - eye_right_lower[0], eye_right_upper[1] - eye_right_lower[1])
+    right_height = math.hypot(
+        eye_right_upper[0] - eye_right_lower[0], eye_right_upper[1] - eye_right_lower[1]
+    )
 
     ## 目頭の中心座標
     lm = landmarks.landmark[362]
-    eye_right_inner=[lm.x * w, lm.y * h]
+    eye_right_inner = [lm.x * w, lm.y * h]
 
     ## 目尻の中心座標
     lm = landmarks.landmark[263]
-    eye_right_outer=[lm.x * w, lm.y * h]
+    eye_right_outer = [lm.x * w, lm.y * h]
 
     ## 2点距離を計算
-    right_width = math.hypot(eye_right_inner[0] - eye_right_outer[0], eye_right_inner[1] - eye_right_outer[1])
+    right_width = math.hypot(
+        eye_right_inner[0] - eye_right_outer[0], eye_right_inner[1] - eye_right_outer[1]
+    )
 
     ## アスペクト比
     right_ear = right_height / right_width if right_width > 1e-6 else 0.0
-
 
     # 閾値と比較して閉じているかを判定
     eyes_closed = (left_ear < threshold) and (right_ear < threshold)
