@@ -2,9 +2,8 @@ import os
 from flask import Flask, Response, request, jsonify
 import cv2
 import time
-
 from camera import CamPtz
-from image_processor import detect_face
+
 
 # 環境変数を.envから読み込む場合
 from dotenv import load_dotenv
@@ -127,6 +126,13 @@ def video_feed():
     )
 
 
+"""
+以下、顔検出などの画像処理エンドポイント
+
+"""
+from image_processor.emotion import detect_face_with_emotion
+from image_processor.mesh_points import detect_face_landmark
+
 @app.route("/face")
 def face():
     frame = camera.read()
@@ -135,7 +141,7 @@ def face():
 
     # 顔検出、表情検出
     # NOTE: 画像処理を差し込むときはここを変更する
-    result_frame = detect_face(frame)
+    result_frame = detect_face_with_emotion(frame)
 
     # JPEGエンコード
     ret, jpeg = cv2.imencode(".jpg", result_frame)
@@ -145,8 +151,7 @@ def face():
     return Response(jpeg.tobytes(), mimetype="image/jpeg")
 
 
-from image_processor import detect_face_landmark
-from flask import jsonify
+
 
 
 @app.route("/face_points", methods=["GET"])
