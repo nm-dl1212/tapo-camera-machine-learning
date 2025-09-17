@@ -1,4 +1,9 @@
 import cv2
+import threading
+import time
+import logging
+
+logger = logging.getLogger("uvicorn")
 
 # RTSP URL（USBカメラを使う場合は 0 や 1 に変更可能）
 RTSP_URL = "rtsp://tapocam:Test1234@192.168.128.132:554/stream1"
@@ -21,7 +26,7 @@ def get_frame(transfrom_func=None):
 
     if not success:
         return None
-    
+
     # NOTE: 画像処理を行う場合はここで実施
     if transfrom_func:
         frame = transfrom_func(frame)
@@ -33,7 +38,11 @@ def get_frame(transfrom_func=None):
     return buffer.tobytes()
 
 
-def frame_generator(transfrom_func=None):
+def frame_generator(
+    stop_event: threading.Event,
+    transfrom_func=None,
+    max_seconds: int = 60,
+):
     """
     ストリーミング用のフレームを連続で返す
     """
@@ -43,8 +52,19 @@ def frame_generator(transfrom_func=None):
     if not cap.isOpened():
         raise RuntimeError("RTSPストリームを開けませんでした")
 
+    start_time = time.time()
+
     try:
-        while True:
+        # stop_eventがセットされるまでフレームを読み続ける
+        while not stop_event.is_set():
+            # 最大時間を超えたら終了
+            if max_seconds and (time.time() - start_time > max_seconds):
+                logger.info(
+                    "Streaming time exceeded %d seconds, closing stream", max_seconds
+                )
+                break
+
+            # 最新フレームのみを取得
             for _ in range(5):
                 success, frame = cap.read()
             if not success:
@@ -60,8 +80,8 @@ def frame_generator(transfrom_func=None):
 
             frame_bytes = buffer.tobytes()
             yield (
-                b"--frame\r\n"
-                b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+                b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
             )
     finally:
         cap.release()
+        logger.info("RTSP connection closed (generator finished)")

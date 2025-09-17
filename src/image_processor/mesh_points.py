@@ -275,7 +275,7 @@ def detect_face_landmark(frame):
                 y = int(landmark.y * h)
 
                 # 元画像に重ねて描画
-                cv2.circle(frame_copy, (x, y), 3, color, -1)
+                cv2.circle(frame_copy, (x, y), 5, color, -1)
         return frame_copy
 
     else:

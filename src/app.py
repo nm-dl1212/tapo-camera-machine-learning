@@ -77,6 +77,7 @@ async def ptz(request: Request):
 """
 from src.frame import get_frame, frame_generator
 
+
 @app.get("/snapshot")
 def snapshot():
     frame_bytes = get_frame()
@@ -85,11 +86,27 @@ def snapshot():
     return Response(content=frame_bytes, media_type="image/jpeg")
 
 
+import threading
+
+
 @app.get("/video")
-def video_feed():
+async def video_feed(request: Request):
+    stop_event = threading.Event()
+
+    # クライアントが切断した場合にストリーミングを停止するための非同期ジェネレーター
+    async def video_stream():
+        generator = frame_generator(stop_event, transfrom_func=detect_face_landmark)
+        try:
+            for chunk in generator:
+                if await request.is_disconnected():
+                    stop_event.set()
+                    break
+                yield chunk
+        finally:
+            stop_event.set()
+
     return StreamingResponse(
-        frame_generator(detect_face_landmark),
-        media_type="multipart/x-mixed-replace; boundary=frame"  
+        video_stream(), media_type="multipart/x-mixed-replace; boundary=frame"
     )
 
 
@@ -119,7 +136,6 @@ def face():
     if frame_bytes is None:
         return {"error": "フレームを取得できませんでした"}
     return Response(content=frame_bytes, media_type="image/jpeg")
-
 
 
 if __name__ == "__main__":
