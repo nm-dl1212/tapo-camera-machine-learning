@@ -1,34 +1,74 @@
-import os
 import cv2
 import threading
 import time
 import logging
+from typing import Callable, Generator, Optional, Dict
 from ..config import RTSP_URL
 
 logger = logging.getLogger("uvicorn")
 
 
-def get_frame(transfrom_func=None):
+def _open_capture() -> Optional[cv2.VideoCapture]:
     """
-    最新の1フレームをJPEGにして返す
+    RTSPストリームを開き、バッファサイズを設定して返す。
+    開けなければNoneを返す。
     """
     cap = cv2.VideoCapture(RTSP_URL, cv2.CAP_FFMPEG)
     cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
     if not cap.isOpened():
         return None
+    return cap
 
-    # 古いフレームを捨てて最新を取得
+
+def _read_latest_frame(cap: cv2.VideoCapture) -> Optional[cv2.Mat]:
+    """
+    古いフレームを捨てて最新のフレームを取得する。
+    取得できなければNoneを返す。
+    """
+    success = False
+    frame = None
     for _ in range(5):
         success, frame = cap.read()
-    cap.release()
-
     if not success:
         return None
+    return frame
 
-    # NOTE: 画像処理を行う場合はここで実施
-    if transfrom_func:
-        frame = transfrom_func(frame)
+
+def get_features(extract_func: Callable[[cv2.Mat], any]) -> Optional[Dict]:
+    """
+    最新の1フレームを取得し、extract_funcで特徴抽出を行い返す。
+    """
+    cap = _open_capture()
+    if cap is None:
+        return None
+
+    frame = _read_latest_frame(cap)
+    cap.release()
+
+    if frame is None:
+        return None
+
+    features = extract_func(frame)
+    return features
+
+
+def get_frame(transform_func: Optional[Callable[[cv2.Mat], cv2.Mat]] = None) -> Optional[bytes]:
+    """
+    最新の1フレームをJPEGエンコードして返す。
+    transform_funcが指定されていればフレームに適用する。
+    """
+    cap = _open_capture()
+    if cap is None:
+        return None
+
+    frame = _read_latest_frame(cap)
+    cap.release()
+
+    if frame is None:
+        return None
+
+    if transform_func:
+        frame = transform_func(frame)
 
     ret, buffer = cv2.imencode(".jpg", frame)
     if not ret:
@@ -39,39 +79,34 @@ def get_frame(transfrom_func=None):
 
 def frame_generator(
     stop_event: threading.Event,
-    transfrom_func=None,
+    transform_func: Optional[Callable[[cv2.Mat], cv2.Mat]] = None,
     max_seconds: int = 60,
-):
+) -> Generator[bytes, None, None]:
     """
-    ストリーミング用のフレームを連続で返す
+    ストリーミング用のフレームを連続で返すジェネレータ。
+    stop_eventがセットされるまで、またはmax_secondsを超えるまでフレームを取得し続ける。
+    transform_funcが指定されていればフレームに適用する。
     """
-    cap = cv2.VideoCapture(RTSP_URL, cv2.CAP_FFMPEG)
-    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-    if not cap.isOpened():
+    cap = _open_capture()
+    if cap is None:
         raise RuntimeError("RTSPストリームを開けませんでした")
 
     start_time = time.time()
 
     try:
-        # stop_eventがセットされるまでフレームを読み続ける
         while not stop_event.is_set():
-            # 最大時間を超えたら終了
             if max_seconds and (time.time() - start_time > max_seconds):
                 logger.info(
                     "Streaming time exceeded %d seconds, closing stream", max_seconds
                 )
                 break
 
-            # 最新フレームのみを取得
-            for _ in range(5):
-                success, frame = cap.read()
-            if not success:
+            frame = _read_latest_frame(cap)
+            if frame is None:
                 continue
 
-            # NOTE: 画像処理を行う場合はここで実施
-            if transfrom_func:
-                frame = transfrom_func(frame)
+            if transform_func:
+                frame = transform_func(frame)
 
             ret, buffer = cv2.imencode(".jpg", frame)
             if not ret:

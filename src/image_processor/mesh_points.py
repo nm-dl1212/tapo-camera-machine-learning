@@ -24,7 +24,7 @@ LEFT_EYE_BOTH = LEFT_EYE_LOWER | LEFT_EYE_UPPER
 RIGHT_EYE_BOTH = RIGHT_EYE_LOWER | RIGHT_EYE_UPPER
 
 
-def determine_face_orientation(landmarks, image_width, image_height):
+def _determine_face_orientation(landmarks, image_width, image_height):
     """
     顔の向きを推定します。
     入力:
@@ -94,7 +94,7 @@ def determine_face_orientation(landmarks, image_width, image_height):
     return {"yaw": yaw, "pitch": pitch, "roll": roll, "orientation": orientation}
 
 
-def is_eyes_closed(landmarks, image_width, image_height, threshold=0.20):
+def _is_eyes_closed(landmarks, image_width, image_height, threshold=0.20):
     """
     両眼が閉じているかを判定します。
     入力:
@@ -176,7 +176,7 @@ def is_eyes_closed(landmarks, image_width, image_height, threshold=0.20):
     }
 
 
-def is_mouth_closed(landmarks, image_width, image_height, threshold=0.20):
+def _is_mouth_closed(landmarks, image_width, image_height, threshold=0.20):
     """
     口が閉じているかを判定します。
     入力:
@@ -215,9 +215,6 @@ def is_mouth_closed(landmarks, image_width, image_height, threshold=0.20):
     return {"mouth_closed": mouth_closed, "opening_ratio": opening_ratio}
 
 
-# -----------------------------
-# Existing face landmark visualization (unchanged)
-# -----------------------------
 def _detect_face_mesh(frame):
     """
     mediapipe face meshを使って顔の点群を検出し、(x, y, z)のリストを返す
@@ -234,6 +231,33 @@ def _detect_face_mesh(frame):
     face_mesh.close()
 
     return results
+
+
+def extract_face_features(frame):
+    """
+    Mediapipe face meshを使って顔のランドマークを検出し、
+    determine_face_orientation, is_eyes_closed, is_mouth_closedを使って
+    特徴量辞書を返す。
+    """
+    features = {}
+
+    h, w = frame.shape[:2]
+    results = _detect_face_mesh(frame)
+
+    if not results.multi_face_landmarks:
+        return features
+
+    face_landmarks = results.multi_face_landmarks[0]
+
+    orientation = _determine_face_orientation(face_landmarks, w, h)
+    eyes = _is_eyes_closed(face_landmarks, w, h)
+    mouth = _is_mouth_closed(face_landmarks, w, h)
+
+    features.update(orientation)
+    features.update(eyes)
+    features.update(mouth)
+
+    return features
 
 
 def to_mesh_frame(frame):

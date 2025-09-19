@@ -74,12 +74,11 @@ async def video_feed(request: Request):
 """
 以下、顔検出などの画像処理エンドポイント
 """
+from src.camera.frame import get_features
 from src.image_processor.emotion import to_emotion_frame
 from src.image_processor.mesh_points import (
     to_mesh_frame,
-    determine_face_orientation,
-    is_eyes_closed,
-    is_mouth_closed,
+    extract_face_features,
 )
 
 
@@ -97,6 +96,14 @@ def face():
     if frame_bytes is None:
         return {"error": "フレームを取得できませんでした"}
     return Response(content=frame_bytes, media_type="image/jpeg")
+
+
+@app.get("/features")
+def features():
+    features = get_features(extract_face_features)
+    if features is None:
+        return {"error": "フレームを取得できませんでした"}
+    return features
 
 
 if __name__ == "__main__":
