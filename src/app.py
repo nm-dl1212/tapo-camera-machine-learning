@@ -56,7 +56,7 @@ async def video_feed(request: Request):
 
     # クライアントが切断した場合にストリーミングを停止するための非同期ジェネレーター
     async def video_stream():
-        generator = frame_generator(stop_event, transfrom_func=detect_face_landmark)
+        generator = frame_generator(stop_event)
         try:
             for chunk in generator:
                 if await request.is_disconnected():
@@ -74,9 +74,9 @@ async def video_feed(request: Request):
 """
 以下、顔検出などの画像処理エンドポイント
 """
-from src.image_processor.emotion import detect_face_with_emotion
+from src.image_processor.emotion import to_emotion_frame
 from src.image_processor.mesh_points import (
-    detect_face_landmark,
+    to_mesh_frame,
     determine_face_orientation,
     is_eyes_closed,
     is_mouth_closed,
@@ -85,7 +85,7 @@ from src.image_processor.mesh_points import (
 
 @app.get("/face")
 def face():
-    frame_bytes = get_frame(detect_face_landmark)
+    frame_bytes = get_frame(transfrom_func=to_mesh_frame)
     if frame_bytes is None:
         return {"error": "フレームを取得できませんでした"}
     return Response(content=frame_bytes, media_type="image/jpeg")
@@ -93,7 +93,7 @@ def face():
 
 @app.get("/face_emotion")
 def face():
-    frame_bytes = get_frame(detect_face_with_emotion)
+    frame_bytes = get_frame(to_emotion_frame)
     if frame_bytes is None:
         return {"error": "フレームを取得できませんでした"}
     return Response(content=frame_bytes, media_type="image/jpeg")

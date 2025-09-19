@@ -236,7 +236,7 @@ def _detect_face_mesh(frame):
     return results
 
 
-def detect_face_landmark(frame):
+def to_mesh_frame(frame):
     """
     Mediapipe face meshを使って顔のランドマークを検出し、画像へ色分けして描画する
     左目、右目、鼻、口を色分けして描画します
