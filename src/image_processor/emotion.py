@@ -10,7 +10,7 @@ face_cascade = cv2.CascadeClassifier(
 smile_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_smile.xml")
 
 
-def detect_face_with_emotion(frame):
+def to_emotion_frame(frame):
     """
     顔検出＋表情判定＋ラベル描画
     """
