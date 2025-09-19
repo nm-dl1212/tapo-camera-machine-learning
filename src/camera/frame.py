@@ -34,7 +34,7 @@ def _read_latest_frame(cap: cv2.VideoCapture) -> Optional[cv2.Mat]:
     return frame
 
 
-def get_features(extract_func: Callable[[cv2.Mat], any]) -> Optional[Dict]:
+def get_features(extract_func):
     """
     最新の1フレームを取得し、extract_funcで特徴抽出を行い返す。
     """
@@ -52,9 +52,7 @@ def get_features(extract_func: Callable[[cv2.Mat], any]) -> Optional[Dict]:
     return features
 
 
-def get_frame(
-    transform_func: Optional[Callable[[cv2.Mat], cv2.Mat]] = None,
-) -> Optional[bytes]:
+def get_frame(transform_func=None):
     """
     最新の1フレームをJPEGエンコードして返す。
     transform_funcが指定されていればフレームに適用する。

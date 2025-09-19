@@ -83,15 +83,15 @@ async def video_feed(request: Request):
 
 @app.get("/face")
 def face():
-    frame_bytes = get_frame(transfrom_func=to_mesh_frame)
+    frame_bytes = get_frame(transform_func=to_mesh_frame)
     if frame_bytes is None:
         return {"error": "フレームを取得できませんでした"}
     return Response(content=frame_bytes, media_type="image/jpeg")
 
 
-@app.get("/face_emotion")
-def face_emotion():
-    frame_bytes = get_frame(to_emotion_frame)
+@app.get("/emotion")
+def emotion():
+    frame_bytes = get_frame(transform_func=to_emotion_frame)
     if frame_bytes is None:
         return {"error": "フレームを取得できませんでした"}
     return Response(content=frame_bytes, media_type="image/jpeg")
@@ -99,7 +99,7 @@ def face_emotion():
 
 @app.get("/features")
 def features():
-    features = get_features(extract_face_features)
+    features = get_features(extract_func=extract_face_features)
     if features is None:
         return {"error": "フレームを取得できませんでした"}
     return features
