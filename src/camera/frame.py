@@ -52,7 +52,9 @@ def get_features(extract_func: Callable[[cv2.Mat], any]) -> Optional[Dict]:
     return features
 
 
-def get_frame(transform_func: Optional[Callable[[cv2.Mat], cv2.Mat]] = None) -> Optional[bytes]:
+def get_frame(
+    transform_func: Optional[Callable[[cv2.Mat], cv2.Mat]] = None,
+) -> Optional[bytes]:
     """
     最新の1フレームをJPEGエンコードして返す。
     transform_funcが指定されていればフレームに適用する。

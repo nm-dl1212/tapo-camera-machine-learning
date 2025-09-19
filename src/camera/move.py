@@ -1,4 +1,3 @@
-import os
 import time
 from onvif import ONVIFCamera
 from ..config import CAMERA, PASSWORD, IP_ADDRESS, ONVIF_PORT

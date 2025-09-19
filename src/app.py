@@ -1,8 +1,15 @@
-import os
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 import threading
+
+from src.camera.move import pan_tilt
+from src.camera.frame import get_frame, frame_generator, get_features
+from src.image_processor.emotion import to_emotion_frame
+from src.image_processor.mesh_points import (
+    to_mesh_frame,
+    extract_face_features,
+)
 
 app = FastAPI()
 
@@ -10,7 +17,6 @@ app = FastAPI()
 """
 PTZ (パン・チルト・ズーム) 操作エンドポイント
 """
-from src.camera.move import pan_tilt
 
 
 class PanTiltRequest(BaseModel):
@@ -39,7 +45,6 @@ async def ptz(request: PanTiltRequest):
 """
 フレーム取得エンドポイント
 """
-from src.camera.frame import get_frame, frame_generator
 
 
 @app.get("/snapshot")
@@ -74,12 +79,6 @@ async def video_feed(request: Request):
 """
 以下、顔検出などの画像処理エンドポイント
 """
-from src.camera.frame import get_features
-from src.image_processor.emotion import to_emotion_frame
-from src.image_processor.mesh_points import (
-    to_mesh_frame,
-    extract_face_features,
-)
 
 
 @app.get("/face")
@@ -91,7 +90,7 @@ def face():
 
 
 @app.get("/face_emotion")
-def face():
+def face_emotion():
     frame_bytes = get_frame(to_emotion_frame)
     if frame_bytes is None:
         return {"error": "フレームを取得できませんでした"}
