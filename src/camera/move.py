@@ -1,12 +1,7 @@
 import os
 import time
 from onvif import ONVIFCamera
-
-# 環境変数
-CAMERA = os.environ["CAMERA"]
-PASSWORD = os.environ["PASSWORD"]
-IP_ADDRESS = os.environ["IP_ADDRESS"]
-ONVIF_PORT = os.environ["ONVIF_PORT"]
+from ..config import CAMERA, PASSWORD, IP_ADDRESS, ONVIF_PORT
 
 
 def move_initial_position():

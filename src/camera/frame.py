@@ -3,17 +3,9 @@ import cv2
 import threading
 import time
 import logging
+from ..config import RTSP_URL
 
 logger = logging.getLogger("uvicorn")
-
-# 環境変数
-CAMERA = os.environ["CAMERA"]
-PASSWORD = os.environ["PASSWORD"]
-IP_ADDRESS = os.environ["IP_ADDRESS"]
-PORT = os.environ["PORT"]
-STREAM = os.environ.get("STREAM")
-
-RTSP_URL = f"rtsp://{CAMERA}:{PASSWORD}@{IP_ADDRESS}:{PORT}/{STREAM}"
 
 
 def get_frame(transfrom_func=None):

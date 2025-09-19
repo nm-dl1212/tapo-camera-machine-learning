@@ -2,11 +2,7 @@ import os
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
-from dotenv import load_dotenv
-
-# 環境変数を.envから読み込む場合
-if os.path.exists(".env"):
-    load_dotenv()
+import threading
 
 app = FastAPI()
 
@@ -14,7 +10,7 @@ app = FastAPI()
 """
 PTZ (パン・チルト・ズーム) 操作エンドポイント
 """
-from src.move import pan_tilt
+from src.camera.move import pan_tilt
 
 
 class PanTiltRequest(BaseModel):
@@ -43,7 +39,7 @@ async def ptz(request: PanTiltRequest):
 """
 フレーム取得エンドポイント
 """
-from src.frame import get_frame, frame_generator
+from src.camera.frame import get_frame, frame_generator
 
 
 @app.get("/snapshot")
@@ -52,9 +48,6 @@ def snapshot():
     if frame_bytes is None:
         return {"error": "フレームを取得できませんでした"}
     return Response(content=frame_bytes, media_type="image/jpeg")
-
-
-import threading
 
 
 @app.get("/video")
