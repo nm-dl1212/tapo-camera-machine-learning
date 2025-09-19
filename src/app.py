@@ -1,10 +1,7 @@
 import os
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import Response, StreamingResponse
-import cv2
-import time
-import asyncio
-from src.camera import CamPtz
+from pydantic import BaseModel
 from dotenv import load_dotenv
 
 # 環境変数を.envから読み込む場合
@@ -13,61 +10,32 @@ if os.path.exists(".env"):
 
 app = FastAPI()
 
-# 単一カメラインスタンス
-camera = CamPtz(
-    user=os.environ.get("CAMERA"),
-    pwd=os.environ.get("PASSWORD"),
-    ipaddr=os.environ.get("IP_ADDRESS"),
-    port=int(os.environ.get("PORT")),
-    stream=os.environ.get("STREAM"),
-    onvif_port=int(os.environ.get("ONVIF_PORT")),
-)
-
-"""
-カメラ接続用のエンドポイント
-"""
-
-
-@app.post("/connect")
-async def connect():
-    try:
-        await asyncio.to_thread(camera.open)  # RTSP 接続開始、スレッドでフレーム更新
-        await asyncio.to_thread(camera.setup_ptz)  # PTZ 設定
-        return {"status": "connected"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/disconnect")
-async def disconnect():
-    try:
-        await asyncio.to_thread(camera.close)
-        return {"status": "disconnected"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 """
 PTZ (パン・チルト・ズーム) 操作エンドポイント
 """
+from src.move import pan_tilt
 
 
-@app.post("/ptz")
-async def ptz(request: Request):
-    data = await request.json()
-    if not data:
-        raise HTTPException(status_code=400, detail="No JSON payload")
+class PanTiltRequest(BaseModel):
+    direction: str = "up"  # 移動方向 ('up', 'down', 'left', 'right')
+    duration: float = 0.5  # 移動時間（秒）
 
-    x = float(data.get("x", 0))
-    y = float(data.get("y", 0))
 
-    # PTZ範囲にクランプ
-    x = max(min(x, camera.XMAX), camera.XMIN)
-    y = max(min(y, camera.YMAX), camera.YMIN)
+@app.post("/pan_tilt")
+async def ptz(request: PanTiltRequest):
+    direction = request.direction
+    duration = request.duration
+
+    if direction not in ["up", "down", "left", "right"]:
+        raise HTTPException(status_code=400, detail="Invalid direction")
 
     try:
-        await asyncio.to_thread(camera.move, x, y)
-        return {"status": "moving", "x": x, "y": y}
+        pan_tilt(direction, duration)
+        return {
+            "status": "success",
+            "message": f"Camera moved {direction} for {duration} seconds",
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
