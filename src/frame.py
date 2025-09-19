@@ -1,3 +1,4 @@
+import os
 import cv2
 import threading
 import time
@@ -5,8 +6,14 @@ import logging
 
 logger = logging.getLogger("uvicorn")
 
-# RTSP URL（USBカメラを使う場合は 0 や 1 に変更可能）
-RTSP_URL = "rtsp://tapocam:Test1234@192.168.128.132:554/stream1"
+# 環境変数
+CAMERA = os.environ["CAMERA"]
+PASSWORD = os.environ["PASSWORD"]
+IP_ADDRESS = os.environ["IP_ADDRESS"]
+PORT = os.environ["PORT"]
+STREAM = os.environ.get("STREAM")
+
+RTSP_URL = f"rtsp://{CAMERA}:{PASSWORD}@{IP_ADDRESS}:{PORT}/{STREAM}"
 
 
 def get_frame(transfrom_func=None):
