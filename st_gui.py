@@ -8,6 +8,13 @@ st.set_page_config(page_title="Camera Control", layout="wide")
 
 st.title("🎥 Camera Control Dashboard")
 
+# ステート
+if "streaming" not in st.session_state:
+    st.session_state.streaming = False
+
+
+
+
 # --- モード選択 ---
 mode = st.radio(
     "モードを選択してください",
@@ -41,23 +48,38 @@ elif mode == "顔点群表示モード":
     else:
         st.warning("特徴を検知できませんでした")
 
+
+
+
+
 elif mode == "ストリーミングモード":
-    st.subheader("📺 ストリーミング映像")
+    st.subheader("📺 ストリーミング映像（1秒ごと更新）")
 
-    # 画像を表示するプレースホルダ
+    # プレースホルダーを用意
     img_placeholder = st.empty()
+    btn_placeholder = st.empty()
 
-    # Stop ボタン
-    stop = st.button("⏹️ 停止", key="stop_button")
+    # --- ボタン切り替え ---
+    if not st.session_state.streaming:
+        # 停止中 → 開始ボタンを表示
+        if btn_placeholder.button("▶️ 開始", key="start_button"):
+            st.session_state.streaming = True
+            st.rerun()
+    else:
+        # ストリーミング中 → 停止ボタンを表示
+        if btn_placeholder.button("🔴 停止", key="stop_button"):
+            st.session_state.streaming = False
+            st.rerun()
 
-    # ループ
-    while not stop:
-        url = f"{BACKEND_URL}/snapshot"
-        response = requests.get(url)
-        if response.status_code == 200:
-            img_placeholder.image(response.content, caption="Streaming", use_container_width=True)
-        else:
-            st.error("ストリーミング映像を取得できませんでした")
-            break
+        # ストリーミングループ
+        while st.session_state.streaming:
+            url = f"{BACKEND_URL}/snapshot"
+            response = requests.get(url)
+            if response.status_code == 200:
+                img_placeholder.image(response.content, caption="Streaming", use_container_width=True)
+            else:
+                st.error("ストリーミング映像を取得できませんでした")
+                st.session_state.streaming = False
+                break
 
-        time.sleep(5)  # 1秒ごとに更新
+            time.sleep(1)
