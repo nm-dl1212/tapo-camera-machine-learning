@@ -13,6 +13,15 @@ from src.image_processor.mesh_points import (
 
 app = FastAPI()
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 本番は制限すべき
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 """
 PTZ (パン・チルト・ズーム) 操作エンドポイント
@@ -61,7 +70,7 @@ async def video_feed(request: Request):
 
     # クライアントが切断した場合にストリーミングを停止するための非同期ジェネレーター
     async def video_stream():
-        generator = frame_generator(stop_event)
+        generator = frame_generator(stop_event, transform_func=to_mesh_frame)
         try:
             for chunk in generator:
                 if await request.is_disconnected():

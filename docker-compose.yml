@@ -14,4 +14,5 @@ services:
     container_name: tapo-frontend
     ports:
       - "8501:8501"
-      
+    env_file:
+    - ./frontend/.env

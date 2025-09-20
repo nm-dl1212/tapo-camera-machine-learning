@@ -19,6 +19,22 @@ st.title("🎥 Camera Control Dashboard")
 if "streaming" not in st.session_state:
     st.session_state.streaming = False
 
+if "move_status" not in st.session_state:
+    st.session_state.move_status = ""
+
+# --- カメラ移動 ---
+def move_camera(direction: str):
+    try:
+        response = requests.post(f"{BACKEND_URL}/pan_tilt", json={"direction": direction, "duration": 0.5})
+        if response.status_code == 200:
+            st.session_state.move_status = response.json().get("message", "移動成功")
+        else:
+            st.session_state.move_status = f"移動失敗: {response.text}"
+    except Exception as e:
+        st.session_state.move_status = f"エラー: {str(e)}"
+
+
+
 
 # --- モード選択 ---
 mode = st.radio(
@@ -53,35 +69,34 @@ elif mode == "顔点群表示モード":
     else:
         st.warning("特徴を検知できませんでした")
 
-
 elif mode == "ストリーミングモード":
-    st.subheader("📺 ストリーミング映像（1秒ごと更新）")
+    st.subheader("📺 ストリーミング映像")
+    
+    # TODO: 修正検討
+    # ここはブラウザからアクセスすることになるので、バックエンドの公開URLにする必要あり。
+    html_code = f"""
+        <img src="http://inspiron:8000/video" height="600" />
+    """
+    st.components.v1.html(html_code, height=600)
 
-    # プレースホルダーを用意
-    img_placeholder = st.empty()
-    btn_placeholder = st.empty()
 
-    # --- ボタン切り替え ---
-    if not st.session_state.streaming:
-        # 停止中 → 開始ボタンを表示
-        if btn_placeholder.button("▶️ 開始", key="start_button"):
-            st.session_state.streaming = True
-            st.rerun()
-    else:
-        # ストリーミング中 → 停止ボタンを表示
-        if btn_placeholder.button("🔴 停止", key="stop_button"):
-            st.session_state.streaming = False
-            st.rerun()
+    # カメラ移動ボタン
+    st.subheader("カメラ移動コントロール")
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col1:
+        if st.button("⬆️ 上へ"):
+            move_camera("up")
+    with col2:
+        left_col, right_col = st.columns([1, 1])
+        with left_col:
+            if st.button("⬅️ 左へ"):
+                move_camera("left")
+        with right_col:
+            if st.button("➡️ 右へ"):
+                move_camera("right")
+    with col3:
+        if st.button("⬇️ 下へ"):
+            move_camera("down")
 
-        # ストリーミングループ
-        while st.session_state.streaming:
-            url = f"{BACKEND_URL}/snapshot"
-            response = requests.get(url)
-            if response.status_code == 200:
-                img_placeholder.image(response.content, caption="Streaming", width="content")
-            else:
-                st.error("ストリーミング映像を取得できませんでした")
-                st.session_state.streaming = False
-                break
-
-            time.sleep(5)
+    if st.session_state.move_status:
+        st.info(st.session_state.move_status)
