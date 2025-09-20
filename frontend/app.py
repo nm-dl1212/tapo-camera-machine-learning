@@ -27,7 +27,7 @@ if mode == "静止画モード":
     url = f"{BACKEND_URL}/snapshot"
     response = requests.get(url)
     if response.status_code == 200:
-        st.image(response.content, caption="Snapshot", use_container_width=True)
+        st.image(response.content, caption="Snapshot", use_container_width=True, width=800)
     else:
         st.error("スナップショットを取得できませんでした")
 
@@ -35,7 +35,7 @@ elif mode == "顔点群表示モード":
     url = f"{BACKEND_URL}/face"
     response = requests.get(url)
     if response.status_code == 200:
-        st.image(response.content, caption="Face Mesh", use_container_width=True)
+        st.image(response.content, caption="Face Mesh", use_container_width=True, width=800)
     else:
         st.error("顔メッシュを取得できませんでした")
 
@@ -76,7 +76,7 @@ elif mode == "ストリーミングモード":
             url = f"{BACKEND_URL}/snapshot"
             response = requests.get(url)
             if response.status_code == 200:
-                img_placeholder.image(response.content, caption="Streaming", use_container_width=True)
+                img_placeholder.image(response.content, caption="Streaming", use_container_width=True, width=800)
             else:
                 st.error("ストリーミング映像を取得できませんでした")
                 st.session_state.streaming = False
