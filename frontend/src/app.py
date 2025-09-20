@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 import time
 
-BACKEND_URL = "http://localhost:8000"  # FastAPI サーバーURL
+BACKEND_URL = "http://backend:8000"  # FastAPI サーバーURL
 
 st.set_page_config(page_title="Camera Control", layout="wide")
 
