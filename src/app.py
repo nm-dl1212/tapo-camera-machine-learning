@@ -101,7 +101,7 @@ def emotion():
 def features():
     features = get_features(extract_func=extract_face_features)
     if features is None:
-        return {"error": "フレームを取得できませんでした"}
+        return {"error": "特徴を検知できませんでした"}
     return features
 
 

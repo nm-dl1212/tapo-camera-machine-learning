@@ -245,7 +245,7 @@ def extract_face_features(frame):
     results = _detect_face_mesh(frame)
 
     if not results.multi_face_landmarks:
-        return features
+        return None
 
     face_landmarks = results.multi_face_landmarks[0]
 
