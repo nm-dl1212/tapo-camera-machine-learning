@@ -75,7 +75,7 @@ elif mode == "ストリーミングモード":
     # TODO: 修正検討
     # ここはブラウザからアクセスすることになるので、バックエンドの公開URLにする必要あり。
     html_code = f"""
-        <img src="http://inspiron:8000/video" height="600" />
+        <img src="{BACKEND_URL}/video" height="600" />
     """
     st.components.v1.html(html_code, height=600)
 
