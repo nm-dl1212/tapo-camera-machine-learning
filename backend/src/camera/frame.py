@@ -80,7 +80,7 @@ def get_frame(transform_func=None):
 def frame_generator(
     stop_event: threading.Event,
     transform_func: Optional[Callable[[cv2.Mat], cv2.Mat]] = None,
-    max_seconds: int = 60,
+    max_seconds: int = 180,
 ) -> Generator[bytes, None, None]:
     """
     ストリーミング用のフレームを連続で返すジェネレータ。
@@ -119,3 +119,75 @@ def frame_generator(
     finally:
         cap.release()
         logger.info("RTSP connection closed (generator finished)")
+
+
+def motion_generator_with_motion(
+    stop_event: threading.Event,
+    transform_func: Optional[Callable[[cv2.Mat], cv2.Mat]] = None,
+    threshold: int = 50,
+    min_area: int = 5000,
+    max_seconds: int = 180,
+) -> Generator[bytes, None, None]:
+    """
+    動体検知付きのフレームジェネレーター
+    - transform_func: フレームに追加で適用する関数
+    - threshold: ピクセル差の閾値
+    - min_area: 動きとみなす最小領域
+    - max_seconds: 最大ストリーミング時間
+    """
+    cap = _open_capture()
+    if cap is None:
+        raise RuntimeError("RTSPストリームを開けませんでした")
+
+    start_time = time.time()
+    prev_frame: Optional[cv2.Mat] = None
+
+    try:
+        while not stop_event.is_set():
+            if max_seconds and (time.time() - start_time > max_seconds):
+                logger.info(
+                    "Streaming time exceeded %d seconds, closing stream", max_seconds
+                )
+                break
+
+            frame = _read_latest_frame(cap)
+            if frame is None:
+                continue
+
+            frame_copy = frame.copy()
+
+            # 動体検知
+            if prev_frame is not None:
+                prev_gray = cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY)
+                curr_gray = cv2.cvtColor(frame_copy, cv2.COLOR_BGR2GRAY)
+                prev_gray = cv2.GaussianBlur(prev_gray, (21, 21), 0)
+                curr_gray = cv2.GaussianBlur(curr_gray, (21, 21), 0)
+
+                frame_delta = cv2.absdiff(prev_gray, curr_gray)
+                _, thresh_img = cv2.threshold(frame_delta, threshold, 255, cv2.THRESH_BINARY)
+                contours, _ = cv2.findContours(thresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                for cnt in contours:
+                    if cv2.contourArea(cnt) < min_area:
+                        continue
+                    x, y, w, h = cv2.boundingRect(cnt)
+                    cv2.rectangle(frame_copy, (x, y), (x + w, y + h), (0, 0, 255), 2)
+
+            prev_frame = frame.copy()
+
+            # 追加の変換処理
+            if transform_func:
+                frame_copy = transform_func(frame_copy)
+
+            ret, buffer = cv2.imencode(".jpg", frame_copy)
+            if not ret:
+                continue
+
+            frame_bytes = buffer.tobytes()
+            yield (
+                b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
+            )
+
+    finally:
+        cap.release()
+        logger.info("RTSP connection closed (motion_generator_with_motion finished)")

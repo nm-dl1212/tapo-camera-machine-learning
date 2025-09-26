@@ -5,6 +5,10 @@ ENV UV_SYSTEM_PYTHON=true
 
 WORKDIR /app
 
+# 依存関係のインストール
+RUN apt -y update \
+    && apt -y install libopencv-dev
+
 # 依存ファイルだけコピー
 COPY pyproject.toml uv.lock ./
 

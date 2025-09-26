@@ -84,6 +84,26 @@ async def video_feed(request: Request):
         video_stream(), media_type="multipart/x-mixed-replace; boundary=frame"
     )
 
+from src.camera.frame import motion_generator_with_motion
+@app.get("/video_motion")
+async def video_motion(request: Request):
+    stop_event = threading.Event()
+
+    async def video_stream():
+        generator = motion_generator_with_motion(stop_event)
+        try:
+            for chunk in generator:
+                if await request.is_disconnected():
+                    stop_event.set()
+                    break
+                yield chunk
+        finally:
+            stop_event.set()
+
+    return StreamingResponse(
+        video_stream(), media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
 
 """
 以下、顔検出などの画像処理エンドポイント
