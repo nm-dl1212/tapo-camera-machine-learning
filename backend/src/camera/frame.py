@@ -77,6 +77,11 @@ def get_frame(transform_func=None):
     return buffer.tobytes()
 
 
+is_motion = False
+last_motion_time = None
+_prev_frame = None
+_prev_frame_time = 0
+
 def frame_generator(
     stop_event: threading.Event,
     transform_func: Optional[Callable[[cv2.Mat], cv2.Mat]] = None,
@@ -86,12 +91,19 @@ def frame_generator(
     ストリーミング用のフレームを連続で返すジェネレータ。
     stop_eventがセットされるまで、またはmax_secondsを超えるまでフレームを取得し続ける。
     transform_funcが指定されていればフレームに適用する。
+    5秒おきにprev_frameを格納し、現在のフレームと差があるときのみis_motionフラグをTrueにする。
     """
+    global is_motion, _prev_frame, _prev_frame_time, last_motion_time
+
     cap = _open_capture()
     if cap is None:
         raise RuntimeError("RTSPストリームを開けませんでした")
 
     start_time = time.time()
+    _prev_frame = None
+    _prev_frame_time = 0
+    is_motion = False
+    last_motion_time = None
 
     try:
         while not stop_event.is_set():
@@ -105,6 +117,35 @@ def frame_generator(
             if frame is None:
                 continue
 
+            # 5秒おきにprev_frameを更新
+            current_time = time.time()
+            if _prev_frame is None or (current_time - _prev_frame_time) >= 5:
+                _prev_frame = frame.copy()
+                _prev_frame_time = current_time
+                is_motion = False
+            else:
+                # 現在のフレームとprev_frameを白黒化、ぼかし
+                prev_gray = cv2.cvtColor(_prev_frame, cv2.COLOR_BGR2GRAY)
+                curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                prev_gray = cv2.GaussianBlur(prev_gray, (21, 21), 0)
+                curr_gray = cv2.GaussianBlur(curr_gray, (21, 21), 0)
+
+                # フレーム間の差分抽出
+                frame_delta = cv2.absdiff(prev_gray, curr_gray)
+                _, thresh_img = cv2.threshold(frame_delta, 50, 255, cv2.THRESH_BINARY)
+                contours, _ = cv2.findContours(thresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+                for cnt in contours:
+                    if cv2.contourArea(cnt) > 5000:
+                        is_motion = True
+                        break
+
+                if is_motion:
+                    last_motion_time = current_time
+
+                print("", is_motion, last_motion_time)
+            
+            # リアルタイムの画像変換
             if transform_func:
                 frame = transform_func(frame)
 

@@ -70,7 +70,7 @@ async def video_feed(request: Request):
 
     # クライアントが切断した場合にストリーミングを停止するための非同期ジェネレーター
     async def video_stream():
-        generator = frame_generator(stop_event, transform_func=to_mesh_frame)
+        generator = frame_generator(stop_event)
         try:
             for chunk in generator:
                 if await request.is_disconnected():
@@ -132,6 +132,24 @@ def features():
     if features is None:
         return {"error": "特徴を検知できませんでした"}
     return features
+
+
+from src.camera.frame import is_motion, last_motion_time
+
+@app.get("/event")
+async def event():
+    """
+    現在のis_motionフラグと最後の検知時間を返すエンドポイント
+    """
+    last_motion_time_str = None
+    if last_motion_time is not None:
+        import datetime
+        last_motion_time_str = datetime.datetime.fromtimestamp(last_motion_time).isoformat()
+
+    return {
+        "is_motion": is_motion,
+        "last_motion_time": last_motion_time_str,
+    }
 
 
 if __name__ == "__main__":
