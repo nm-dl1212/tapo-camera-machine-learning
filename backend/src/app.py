@@ -4,7 +4,6 @@ from pydantic import BaseModel
 import threading
 
 from src.camera.move import pan_tilt
-from src.camera.frame import get_frame, frame_generator, get_features
 from src.image_processor.emotion import to_emotion_frame
 from src.image_processor.mesh_points import (
     to_mesh_frame,
@@ -22,6 +21,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# カメラインスタンス
+from src.camera.frame import CameraFrame
+camera_frame = CameraFrame()
+
 
 """
 PTZ (パン・チルト・ズーム) 操作エンドポイント
@@ -70,27 +74,7 @@ async def video_feed(request: Request):
 
     # クライアントが切断した場合にストリーミングを停止するための非同期ジェネレーター
     async def video_stream():
-        generator = frame_generator(stop_event)
-        try:
-            for chunk in generator:
-                if await request.is_disconnected():
-                    stop_event.set()
-                    break
-                yield chunk
-        finally:
-            stop_event.set()
-
-    return StreamingResponse(
-        video_stream(), media_type="multipart/x-mixed-replace; boundary=frame"
-    )
-
-from src.camera.frame import motion_generator_with_motion
-@app.get("/video_motion")
-async def video_motion(request: Request):
-    stop_event = threading.Event()
-
-    async def video_stream():
-        generator = motion_generator_with_motion(stop_event)
+        generator = camera_frame.frame_generator(stop_event)
         try:
             for chunk in generator:
                 if await request.is_disconnected():
@@ -112,15 +96,7 @@ async def video_motion(request: Request):
 
 @app.get("/face")
 def face():
-    frame_bytes = get_frame(transform_func=to_mesh_frame)
-    if frame_bytes is None:
-        return {"error": "フレームを取得できませんでした"}
-    return Response(content=frame_bytes, media_type="image/jpeg")
-
-
-@app.get("/emotion")
-def emotion():
-    frame_bytes = get_frame(transform_func=to_emotion_frame)
+    frame_bytes = camera_frame.get_frame(transform_func=to_mesh_frame)
     if frame_bytes is None:
         return {"error": "フレームを取得できませんでした"}
     return Response(content=frame_bytes, media_type="image/jpeg")
@@ -128,27 +104,20 @@ def emotion():
 
 @app.get("/features")
 def features():
-    features = get_features(extract_func=extract_face_features)
+    features = camera_frame.get_features(extract_func=extract_face_features)
     if features is None:
         return {"error": "特徴を検知できませんでした"}
     return features
 
-
-from src.camera.frame import is_motion, last_motion_time
 
 @app.get("/event")
 async def event():
     """
     現在のis_motionフラグと最後の検知時間を返すエンドポイント
     """
-    last_motion_time_str = None
-    if last_motion_time is not None:
-        import datetime
-        last_motion_time_str = datetime.datetime.fromtimestamp(last_motion_time).isoformat()
-
     return {
-        "is_motion": is_motion,
-        "last_motion_time": last_motion_time_str,
+        "is_motion": camera_frame.is_motion,
+        "last_motion_time": camera_frame.last_motion_time,
     }
 
 
