@@ -3,16 +3,15 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 import threading
 
-from src.camera.move import pan_tilt
 from src.image_processor.emotion import to_emotion_frame
 from src.image_processor.mesh_points import (
     to_mesh_frame,
     extract_face_features,
 )
 
-app = FastAPI()
-
 from fastapi.middleware.cors import CORSMiddleware
+from src.camera.my_camera import MyCamera
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -23,9 +22,8 @@ app.add_middleware(
 )
 
 # カメラインスタンス
-from src.camera.frame import CameraFrame
-camera_frame = CameraFrame()
-
+from src.config import IP_ADDRESS, CAMERA, PASSWORD, PORT, STREAM, ONVIF_PORT
+my_camera = MyCamera(IP_ADDRESS, CAMERA, PASSWORD, PORT, STREAM, ONVIF_PORT)
 
 """
 PTZ (パン・チルト・ズーム) 操作エンドポイント
@@ -46,7 +44,7 @@ async def ptz(request: PanTiltRequest):
         raise HTTPException(status_code=400, detail="Invalid direction")
 
     try:
-        pan_tilt(direction, duration)
+        my_camera.pan_tilt(direction, duration)
         return {
             "status": "success",
             "message": f"Camera moved {direction} for {duration} seconds",
@@ -62,7 +60,7 @@ async def ptz(request: PanTiltRequest):
 
 @app.get("/snapshot")
 def snapshot():
-    frame_bytes = get_frame()
+    frame_bytes = my_camera.get_frame()
     if frame_bytes is None:
         return {"error": "フレームを取得できませんでした"}
     return Response(content=frame_bytes, media_type="image/jpeg")
@@ -74,7 +72,7 @@ async def video_feed(request: Request):
 
     # クライアントが切断した場合にストリーミングを停止するための非同期ジェネレーター
     async def video_stream():
-        generator = camera_frame.frame_generator(stop_event)
+        generator = my_camera.frame_generator(stop_event)
         try:
             for chunk in generator:
                 if await request.is_disconnected():
@@ -96,7 +94,7 @@ async def video_feed(request: Request):
 
 @app.get("/face")
 def face():
-    frame_bytes = camera_frame.get_frame(transform_func=to_mesh_frame)
+    frame_bytes = my_camera.get_frame(transform_func=to_mesh_frame)
     if frame_bytes is None:
         return {"error": "フレームを取得できませんでした"}
     return Response(content=frame_bytes, media_type="image/jpeg")
@@ -104,7 +102,7 @@ def face():
 
 @app.get("/features")
 def features():
-    features = camera_frame.get_features(extract_func=extract_face_features)
+    features = my_camera.get_features(extract_func=extract_face_features)
     if features is None:
         return {"error": "特徴を検知できませんでした"}
     return features
@@ -116,8 +114,8 @@ async def event():
     現在のis_motionフラグと最後の検知時間を返すエンドポイント
     """
     return {
-        "is_motion": camera_frame.is_motion,
-        "last_motion_time": camera_frame.last_motion_time,
+        "is_motion": my_camera.is_motion,
+        "last_motion_time": my_camera.last_motion_time,
     }
 
 
