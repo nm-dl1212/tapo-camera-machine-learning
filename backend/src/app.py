@@ -11,6 +11,7 @@ from src.image_processor.mesh_points import (
 
 from fastapi.middleware.cors import CORSMiddleware
 from src.camera.my_camera import MyCamera
+
 app = FastAPI()
 
 app.add_middleware(
@@ -23,6 +24,7 @@ app.add_middleware(
 
 # カメラインスタンス
 from src.config import IP_ADDRESS, CAMERA, PASSWORD, PORT, STREAM, ONVIF_PORT
+
 my_camera = MyCamera(IP_ADDRESS, CAMERA, PASSWORD, PORT, STREAM, ONVIF_PORT)
 
 """
@@ -54,16 +56,8 @@ async def ptz(request: PanTiltRequest):
 
 
 """
-フレーム取得エンドポイント
+ストリーミング取得エンドポイント
 """
-
-
-@app.get("/snapshot")
-def snapshot():
-    frame_bytes = my_camera.get_frame()
-    if frame_bytes is None:
-        return {"error": "フレームを取得できませんでした"}
-    return Response(content=frame_bytes, media_type="image/jpeg")
 
 
 @app.get("/video")
@@ -88,24 +82,37 @@ async def video_feed(request: Request):
 
 
 """
-以下、顔検出などの画像処理エンドポイント
+スナップショット取得エンドポイント
+クエリパラメータ`mode`により取得する画像の種類を変更可能
+    - None: 通常のJPEG画像を返す
+    - "mesh": 顔のメッシュポイントを描画したJPEG画像を返す
+    - "features": 顔の特徴点の座標リストをJSONで返す
 """
 
 
-@app.get("/face")
-def face():
-    frame_bytes = my_camera.get_frame(transform_func=to_mesh_frame)
+@app.get("/snapshot")
+def face(mode: str = None):
+    if mode is None:
+        frame_bytes, _ = my_camera.get_frame()
+    elif mode == "mesh":
+        frame_bytes, _ = my_camera.get_frame(transform_func=to_mesh_frame)
+    elif mode == "features":
+        _, features = my_camera.get_frame(extract_func=extract_face_features)
+        if features is None:
+            return HTTPException(status_code=500, detail="特徴を検知できませんでした")
+        return features
+    else:
+        return HTTPException(status_code=400, detail="不正なmodeです")
+
     if frame_bytes is None:
-        return {"error": "フレームを取得できませんでした"}
+        return HTTPException(status_code=500, detail="フレームを取得できませんでした")
+
     return Response(content=frame_bytes, media_type="image/jpeg")
 
 
-@app.get("/features")
-def features():
-    features = my_camera.get_features(extract_func=extract_face_features)
-    if features is None:
-        return {"error": "特徴を検知できませんでした"}
-    return features
+"""
+イベント情報取得エンドポイント
+"""
 
 
 @app.get("/event")

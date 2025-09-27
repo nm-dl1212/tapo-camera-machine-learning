@@ -61,38 +61,22 @@ class MyCamera:
             return None
         return frame
 
-    def get_features(self, extract_func):
-        """
-        最新の1フレームを取得し、extract_funcで特徴抽出を行い返す。
-        """
-        cap = self._open_capture()
-        if cap is None:
-            return None
-
-        frame = self._read_latest_frame(cap)
-        cap.release()
-
-        if frame is None:
-            return None
-
-        features = extract_func(frame)
-        return features
-
-    def get_frame(self, transform_func=None):
+    def get_frame(self, transform_func=None, extract_func=None):
         """
         最新の1フレームをJPEGエンコードして返す。
         transform_funcが指定されていればフレームに適用する。
         """
         cap = self._open_capture()
         if cap is None:
-            return None
+            return None, None
 
         frame = self._read_latest_frame(cap)
         cap.release()
 
         if frame is None:
-            return None
+            return None, None
 
+        # 画像変換
         if transform_func:
             frame = transform_func(frame)
 
@@ -100,7 +84,12 @@ class MyCamera:
         if not ret:
             return None
 
-        return buffer.tobytes()
+        # 特徴抽出
+        features = None
+        if extract_func:
+            features = extract_func(frame)
+
+        return buffer.tobytes(), features
 
     def frame_generator(
         self,
