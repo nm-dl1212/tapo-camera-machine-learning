@@ -110,7 +110,9 @@ class MyCamera:
         start_time = time.time()
 
         try:
-            while not stop_event.is_set():
+            while not stop_event.is_set(): ## stop_eventが贈られるまで、この中をループする
+
+                # 最大時間を超えたら終了
                 if max_seconds and (time.time() - start_time > max_seconds):
                     logger.info(
                         "Streaming time exceeded %d seconds, closing stream",
@@ -121,17 +123,17 @@ class MyCamera:
                 frame = self._read_latest_frame(cap)
                 if frame is None:
                     continue
+                
+
+                if self.prev_frame is None:
+                    # 初期化
+                    self.prev_frame = frame.copy()
+                    self.prev_frame_time = time.time()
+                    continue
 
                 # 5秒おきにprev_frameを更新
                 current_time = time.time()
-                if (
-                    self.prev_frame is None
-                    or (current_time - self.prev_frame_time) >= 5
-                ):
-                    self.prev_frame = frame.copy()
-                    self.prev_frame_time = current_time
-                    self.is_motion = False
-                else:
+                if (current_time - self.prev_frame_time) >= 5:
                     # 現在のフレームとprev_frameを白黒化、ぼかし
                     prev_gray = cv2.cvtColor(self.prev_frame, cv2.COLOR_BGR2GRAY)
                     curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -146,7 +148,9 @@ class MyCamera:
                     contours, _ = cv2.findContours(
                         thresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
                     )
-
+                    
+                    # 十分な大きさの動体があれば、is_motionをTrueに
+                    self.is_motion = False
                     for cnt in contours:
                         if cv2.contourArea(cnt) > 5000:
                             self.is_motion = True
@@ -155,7 +159,11 @@ class MyCamera:
                     if self.is_motion:
                         self.last_motion_time = current_time
 
-                    print("", self.is_motion, self.last_motion_time)
+                    # 最後に時間とフレームをを更新する
+                    self.prev_frame = frame.copy()
+                    self.prev_frame_time = current_time
+
+                    print(current_time, self.is_motion, self.last_motion_time)
 
                 # リアルタイムの画像変換
                 if transform_func:
