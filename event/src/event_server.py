@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 if os.path.exists(".env"):
     load_dotenv()
 
-CAMERA_SERVER_URL = os.environ["BACKEND_URL"]
+CAMERA_SERVER_URL = os.environ["CAMERA_SERVER_URL"]
 
 app = FastAPI()
 
@@ -61,7 +61,7 @@ async def startup_event():
         async with httpx.AsyncClient() as client:
             while True:
                 try:
-                    resp = await client.get(CAMERA_SERVER_URL, timeout=10)
+                    resp = await client.get(f"{CAMERA_SERVER_URL}/snapshot", timeout=10)
                     arr = np.frombuffer(resp.content, dtype=np.uint8)
                     frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
 

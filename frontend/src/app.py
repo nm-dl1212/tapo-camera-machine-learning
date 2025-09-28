@@ -1,12 +1,8 @@
 import streamlit as st
 import requests
-import time
-import datetime
 
 import os
 import json
-import cv2
-import numpy as np
 from dotenv import load_dotenv
 
 if os.path.exists(".env"):
@@ -88,8 +84,8 @@ elif mode == "ストリーミング":
     st.components.v1.html(html_code, height=600)
 
 elif mode == "動体検知":
-    img_placeholder = st.empty()
     msg_placeholder = st.empty()
+    img_placeholder = st.empty()
     
     for event in listen_to_events():
         if event.get("motion"):
