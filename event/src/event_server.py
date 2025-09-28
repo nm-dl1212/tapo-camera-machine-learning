@@ -78,7 +78,7 @@ async def startup_event():
                 except Exception as e:
                     motion_state = {"motion": False, "error": str(e)}
 
-                await asyncio.sleep(5)
+                await asyncio.sleep(3)  # 3秒おきにチェック
 
     # バックグラウンドで動体検知ジョブを開始
     asyncio.create_task(motion_detection_job())

@@ -42,7 +42,8 @@ class MyCamera:
         RTSPストリームを開き、バッファサイズを設定して返す。
         開けなければNoneを返す。
         """
-        cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+        cap = cv2.VideoCapture(self.rtsp_url)
+        # cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         if not cap.isOpened():
             return None
@@ -94,6 +95,7 @@ class MyCamera:
     def frame_generator(
         self,
         stop_event: threading.Event,
+        enable_motion_detection: bool = False,
         transform_func: Optional[Callable[[cv2.Mat], cv2.Mat]] = None,
         max_seconds: int = 180,
     ) -> Generator[bytes, None, None]:
@@ -130,40 +132,39 @@ class MyCamera:
                     self.prev_frame = frame.copy()
                     self.prev_frame_time = time.time()
                     continue
+                
+                # 動体検知
+                if enable_motion_detection:
+                    current_time = time.time()
+                    if (current_time - self.prev_frame_time) >= 5:
+                        # 現在のフレームとprev_frameを白黒化、ぼかし
+                        prev_gray = cv2.cvtColor(self.prev_frame, cv2.COLOR_BGR2GRAY)
+                        curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                        prev_gray = cv2.GaussianBlur(prev_gray, (21, 21), 0)
+                        curr_gray = cv2.GaussianBlur(curr_gray, (21, 21), 0)
 
-                # 5秒おきにprev_frameを更新
-                current_time = time.time()
-                if (current_time - self.prev_frame_time) >= 5:
-                    # 現在のフレームとprev_frameを白黒化、ぼかし
-                    prev_gray = cv2.cvtColor(self.prev_frame, cv2.COLOR_BGR2GRAY)
-                    curr_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    prev_gray = cv2.GaussianBlur(prev_gray, (21, 21), 0)
-                    curr_gray = cv2.GaussianBlur(curr_gray, (21, 21), 0)
+                        # フレーム間の差分抽出
+                        frame_delta = cv2.absdiff(prev_gray, curr_gray)
+                        _, thresh_img = cv2.threshold(
+                            frame_delta, 50, 255, cv2.THRESH_BINARY
+                        )
+                        contours, _ = cv2.findContours(
+                            thresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+                        )
+                        
+                        # 十分な大きさの動体があれば、is_motionをTrueに
+                        self.is_motion = False
+                        for cnt in contours:
+                            if cv2.contourArea(cnt) > 5000:
+                                self.is_motion = True
+                                break
 
-                    # フレーム間の差分抽出
-                    frame_delta = cv2.absdiff(prev_gray, curr_gray)
-                    _, thresh_img = cv2.threshold(
-                        frame_delta, 50, 255, cv2.THRESH_BINARY
-                    )
-                    contours, _ = cv2.findContours(
-                        thresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-                    )
-                    
-                    # 十分な大きさの動体があれば、is_motionをTrueに
-                    self.is_motion = False
-                    for cnt in contours:
-                        if cv2.contourArea(cnt) > 5000:
-                            self.is_motion = True
-                            break
+                        if self.is_motion:
+                            self.last_motion_time = current_time
 
-                    if self.is_motion:
-                        self.last_motion_time = current_time
-
-                    # 最後に時間とフレームをを更新する
-                    self.prev_frame = frame.copy()
-                    self.prev_frame_time = current_time
-
-                    print(current_time, self.is_motion, self.last_motion_time)
+                        # 最後に時間とフレームをを更新する
+                        self.prev_frame = frame.copy()
+                        self.prev_frame_time = current_time
 
                 # リアルタイムの画像変換
                 if transform_func:
