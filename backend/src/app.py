@@ -3,17 +3,16 @@ from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 import threading
 
-from src.camera.move import pan_tilt
-from src.camera.frame import get_frame, frame_generator, get_features
 from src.image_processor.emotion import to_emotion_frame
 from src.image_processor.mesh_points import (
     to_mesh_frame,
     extract_face_features,
 )
 
-app = FastAPI()
-
 from fastapi.middleware.cors import CORSMiddleware
+from src.camera.my_camera import MyCamera
+
+app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
@@ -22,6 +21,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# カメラインスタンス
+from src.config import IP_ADDRESS, CAMERA, PASSWORD, PORT, STREAM, ONVIF_PORT
+
+my_camera = MyCamera(IP_ADDRESS, CAMERA, PASSWORD, PORT, STREAM, ONVIF_PORT)
 
 """
 PTZ (パン・チルト・ズーム) 操作エンドポイント
@@ -42,7 +46,7 @@ async def ptz(request: PanTiltRequest):
         raise HTTPException(status_code=400, detail="Invalid direction")
 
     try:
-        pan_tilt(direction, duration)
+        my_camera.pan_tilt(direction, duration)
         return {
             "status": "success",
             "message": f"Camera moved {direction} for {duration} seconds",
@@ -52,16 +56,8 @@ async def ptz(request: PanTiltRequest):
 
 
 """
-フレーム取得エンドポイント
+ストリーミング取得エンドポイント
 """
-
-
-@app.get("/snapshot")
-def snapshot():
-    frame_bytes = get_frame()
-    if frame_bytes is None:
-        return {"error": "フレームを取得できませんでした"}
-    return Response(content=frame_bytes, media_type="image/jpeg")
 
 
 @app.get("/video")
@@ -70,27 +66,7 @@ async def video_feed(request: Request):
 
     # クライアントが切断した場合にストリーミングを停止するための非同期ジェネレーター
     async def video_stream():
-        generator = frame_generator(stop_event, transform_func=to_mesh_frame)
-        try:
-            for chunk in generator:
-                if await request.is_disconnected():
-                    stop_event.set()
-                    break
-                yield chunk
-        finally:
-            stop_event.set()
-
-    return StreamingResponse(
-        video_stream(), media_type="multipart/x-mixed-replace; boundary=frame"
-    )
-
-from src.camera.frame import motion_generator_with_motion
-@app.get("/video_motion")
-async def video_motion(request: Request):
-    stop_event = threading.Event()
-
-    async def video_stream():
-        generator = motion_generator_with_motion(stop_event)
+        generator = my_camera.frame_generator(stop_event)
         try:
             for chunk in generator:
                 if await request.is_disconnected():
@@ -106,32 +82,48 @@ async def video_motion(request: Request):
 
 
 """
-以下、顔検出などの画像処理エンドポイント
+スナップショット取得エンドポイント
+クエリパラメータ`mode`により取得する画像の種類を変更可能
+    - None: 通常のJPEG画像を返す
+    - "mesh": 顔のメッシュポイントを描画したJPEG画像を返す
+    - "features": 顔の特徴点の座標リストをJSONで返す
 """
 
 
-@app.get("/face")
-def face():
-    frame_bytes = get_frame(transform_func=to_mesh_frame)
+@app.get("/snapshot")
+def face(mode: str = None):
+    if mode is None:
+        frame_bytes, _ = my_camera.get_frame()
+    elif mode == "mesh":
+        frame_bytes, _ = my_camera.get_frame(transform_func=to_mesh_frame)
+    elif mode == "features":
+        _, features = my_camera.get_frame(extract_func=extract_face_features)
+        if features is None:
+            return HTTPException(status_code=500, detail="特徴を検知できませんでした")
+        return features
+    else:
+        return HTTPException(status_code=400, detail="不正なmodeです")
+
     if frame_bytes is None:
-        return {"error": "フレームを取得できませんでした"}
+        return HTTPException(status_code=500, detail="フレームを取得できませんでした")
+
     return Response(content=frame_bytes, media_type="image/jpeg")
 
 
-@app.get("/emotion")
-def emotion():
-    frame_bytes = get_frame(transform_func=to_emotion_frame)
-    if frame_bytes is None:
-        return {"error": "フレームを取得できませんでした"}
-    return Response(content=frame_bytes, media_type="image/jpeg")
+"""
+イベント情報取得エンドポイント
+"""
 
 
-@app.get("/features")
-def features():
-    features = get_features(extract_func=extract_face_features)
-    if features is None:
-        return {"error": "特徴を検知できませんでした"}
-    return features
+@app.get("/event")
+async def event():
+    """
+    現在のis_motionフラグと最後の検知時間を返すエンドポイント
+    """
+    return {
+        "is_motion": my_camera.is_motion,
+        "last_motion_time": my_camera.last_motion_time,
+    }
 
 
 if __name__ == "__main__":

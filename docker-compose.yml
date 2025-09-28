@@ -6,13 +6,29 @@ services:
     container_name: tapo-backend
     ports:
       - "8000:8000"
-    env_file:
-    - ./backend/.env
+    environment:
+      - CAMERA=${CAMERA}
+      - PASSWORD=${PASSWORD}
+      - IP_ADDRESS=${IP_ADDRESS}
+      - PORT=${PORT}
+      - STREAM=${STREAM}
+      - ONVIF_PORT=${ONVIF_PORT}
+
+  event:
+    build: ./event
+    container_name: tapo-event
+    environment:
+      - CAMERA_SERVER_URL=http://backend:8000
+    depends_on:
+      - backend
     
   frontend:
     build: ./frontend
     container_name: tapo-frontend
     ports:
       - "8501:8501"
-    env_file:
-    - ./frontend/.env
+    environment:
+      - CAMERA_SERVER_URL=http://backend:8000
+      - EVENT_SERVER_URL=http://event:8000
+    depends_on:
+      - backend

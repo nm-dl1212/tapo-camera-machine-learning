@@ -1,0 +1,15 @@
+[project]
+name = "event"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.117.1",
+    "httpx>=0.28.1",
+    "numpy>=2.3.3",
+    "opencv-python>=4.11.0.86",
+    "python-dotenv>=1.1.1",
+    "requests>=2.32.5",
+    "uvicorn>=0.37.0",
+]

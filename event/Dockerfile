@@ -21,4 +21,4 @@ COPY src/ ./src/
 
 EXPOSE 8000
 
-CMD ["uvicorn", "src.app:app", "--reload", "--host", "0.0.0.0"]
+CMD ["uvicorn", "src.event_server:app", "--reload", "--host", "0.0.0.0"]
