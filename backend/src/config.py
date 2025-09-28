@@ -11,5 +11,3 @@ IP_ADDRESS = os.environ["IP_ADDRESS"]
 PORT = os.environ["PORT"]
 STREAM = os.environ.get("STREAM")
 ONVIF_PORT = os.environ["ONVIF_PORT"]
-
-RTSP_URL = f"rtsp://{CAMERA}:{PASSWORD}@{IP_ADDRESS}:{PORT}/{STREAM}"
