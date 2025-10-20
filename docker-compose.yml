@@ -31,7 +31,7 @@ services:
       - "8501:8501"
     environment:
       - CAMERA_SERVER_URL=http://backend:8000
-      - CAMERA_API_URL=https://inspiron.taild6bec2.ts.net/camapi/
       - EVENT_SERVER_URL=http://event:8000
+      - CAMERA_API_URL=http://192.168.128.221:8000
     depends_on:
       - backend

@@ -97,7 +97,7 @@ class MyCamera:
         stop_event: threading.Event,
         enable_motion_detection: bool = False,
         transform_func: Optional[Callable[[cv2.Mat], cv2.Mat]] = None,
-        max_seconds: int = 180,
+        max_seconds: int = 604800,
     ) -> Generator[bytes, None, None]:
         """
         ストリーミング用のフレームを連続で返すジェネレータ。

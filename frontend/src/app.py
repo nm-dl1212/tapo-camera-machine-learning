@@ -4,6 +4,7 @@ import requests
 import os
 import json
 import uuid
+import time
 from dotenv import load_dotenv
 
 if os.path.exists(".env"):
@@ -12,6 +13,16 @@ if os.path.exists(".env"):
 CAMERA_SERVER_URL = os.environ["CAMERA_SERVER_URL"]
 CAMERA_API_URL = os.environ["CAMERA_API_URL"]
 EVENT_SERVER_URL = os.environ["EVENT_SERVER_URL"]
+
+# stateの初期化
+if "move_status" not in st.session_state:
+    st.session_state.move_status = ""
+if "detected_imgs" not in st.session_state:
+    st.session_state.detected_imgs = []
+if "detected_times" not in st.session_state:
+    st.session_state.detected_times = []
+if "prev_motion" not in st.session_state:
+    st.session_state.prev_motion = False
 
 
 def move_camera(direction: str):
@@ -34,76 +45,53 @@ def listen_to_events():
                 data = json.loads(line.decode("utf-8").replace("data: ", ""))
                 yield data
 
-
-"""
-描画コンポーネント
-"""
+# --- Streamlit UI ---
 st.set_page_config(page_title="Camera Control", layout="wide")
-st.title("🎥 Camera Control Dashboard")
+st.title("🎥 Camera Dashboard")
 
 # カメラ移動ボタン
-st.subheader("カメラ移動コントロール")
-col1, col2, col3 = st.columns([1, 2, 1])
-with col1:
-    if st.button("⬆️ 上へ"):
-        move_camera("up")
-with col2:
-    left_col, right_col = st.columns([1, 1])
-    with left_col:
-        if st.button("⬅️ 左へ"):
+with st.popover("Move Camera"):
+    col1, col2, col3, col4 = st.columns([1, 1, 1, 1], gap="small")
+    with col1:
+        if st.button("👈"):
             move_camera("left")
-    with right_col:
-        if st.button("➡️ 右へ"):
+    with col2:
+        if st.button("👇"):
+            move_camera("down")
+    with col3:
+        if st.button("👆"):
+            move_camera("up")
+    with col4:
+        if st.button("👉"):
             move_camera("right")
-with col3:
-    if st.button("⬇️ 下へ"):
-        move_camera("down")
 
-# モード選択
+# ストリーミング映像表示
+html_code = f"""
+    <img src="{CAMERA_API_URL}/video" style="width: 100%; height: auto;" />
+"""
+st.html(html_code)
+
+# --- モードに応じた処理 ---
 mode = st.radio(
     "モードを選択してください",
-    ("静止画", "ストリーミング", "動体検知"),
+    ("ストリーミング", "動体検知"),
     horizontal=True,
 )
 
-# --- モードに応じた処理 ---
-if mode == "静止画":
-    snapshot_mode = st.selectbox(
-        "スナップショットモードを選択してください", ("標準", "メッシュ")
-    )
-    if snapshot_mode == "標準":
-        url = f"{CAMERA_SERVER_URL}/snapshot"
-    elif snapshot_mode == "メッシュ":
-        url = f"{CAMERA_SERVER_URL}/snapshot?mode=mesh"
-
-    response = requests.get(url)
-    if response.status_code == 200:
-        st.image(response.content, caption="Snapshot", width="content")
-    else:
-        st.error("スナップショットを取得できませんでした")
-
-elif mode == "ストリーミング":
-    # ストリーミング映像表示
-    html_code = f"""
-        <img src="{CAMERA_API_URL}/video" height="600" />
-    """
-    st.components.v1.html(html_code, height=600)
+if mode == "ストリーミング":
+    pass
 
 elif mode == "動体検知":
-    # ストリーミング映像表示
-    html_code = f"""
-        <img src="{CAMERA_API_URL}/video" height="600" />
-    """
-    st.components.v1.html(html_code, height=600)
-
     # 動体検知
     msg_placeholder = st.empty()
-    prev_motion = False  # 直前の状態を記録
+    img_placeholder = st.empty()
+    
+    st.session_state.prev_motion = False  # 直前の状態を記録
 
     for event in listen_to_events():
         motion = event.get("motion", False)
 
-        if motion and not prev_motion:  # False → True に変わった瞬間だけ
+        if motion and not st.session_state.prev_motion:  # False → True に変わった瞬間だけ
             msg_placeholder.warning(f"⚠️ 動体検知！ ({event['timestamp']})")
 
             # ブザー音を鳴らす
@@ -117,7 +105,29 @@ elif mode == "動体検知":
             """
             st.components.v1.html(sound_html, height=0)
 
+            # スナップショットとタイムスタンプを表示
+            url = f"{CAMERA_SERVER_URL}/snapshot?mode=mesh"
+            response = requests.get(url)
+
+            if response.status_code == 200:
+                # detected_imgs に画像を追加. 10件を超える場合は古いものを削除
+                st.session_state.detected_imgs.append({"content": response.content, "timestamp": event["timestamp"]})
+                if len(st.session_state.detected_imgs) > 10:
+                    st.session_state.detected_imgs.pop(0)
+            else:
+                st.error("スナップショットを取得できませんでした")
+
+            # detected_imgs に溜まった画像を、逆順5個まで表示
+            display_imgs = st.session_state.detected_imgs[-10:][::-1]
+            display_times = st.session_state.detected_times[-10:][::-1]
+
+            with img_placeholder.expander("検知画像一覧", expanded=False):
+                for i, img in enumerate(display_imgs):
+                    st.image(img["content"], caption=f"検知時刻: {img["timestamp"]}", width=500)
+
+
         elif not motion:
             msg_placeholder.info("動きなし")
 
-        prev_motion = motion  # 状態を更新
+        st.session_state.prev_motion = motion  # 状態を更新
+
