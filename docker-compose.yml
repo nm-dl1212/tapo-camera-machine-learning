@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      network: host
     container_name: tapo-backend
     ports:
       - "8000:8000"
@@ -15,7 +17,9 @@ services:
       - ONVIF_PORT=${ONVIF_PORT}
 
   event:
-    build: ./event
+    build:
+      context: ./event
+      network: host
     container_name: tapo-event
     ports:
       - "8001:8000"
@@ -25,7 +29,9 @@ services:
       - backend
     
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      network: host
     container_name: tapo-frontend
     ports:
       - "8501:8501"

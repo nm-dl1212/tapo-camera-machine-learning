@@ -83,16 +83,21 @@ if mode == "ストリーミング":
 
 elif mode == "動体検知":
     # 動体検知
-    msg_placeholder = st.empty()
+    event_placeholder = st.empty()
+    motion_placeholder = st.empty()
+    face_placeholder = st.empty()
     img_placeholder = st.empty()
     
     st.session_state.prev_motion = False  # 直前の状態を記録
 
     for event in listen_to_events():
-        motion = event.get("motion", False)
+        # state 表示
+        event_placeholder.json(event, expanded=False)
 
+        motion = event.get("motion", False)
+        
         if motion and not st.session_state.prev_motion:  # False → True に変わった瞬間だけ
-            msg_placeholder.warning(f"⚠️ 動体検知！ ({event['timestamp']})")
+            motion_placeholder.warning(f"⚠️ 動体検知！ ({event['timestamp']})")
 
             # ブザー音を鳴らす
             div_id = str(uuid.uuid4())
@@ -127,7 +132,21 @@ elif mode == "動体検知":
 
 
         elif not motion:
-            msg_placeholder.info("動きなし")
+            motion_placeholder.info("動きなし")
 
         st.session_state.prev_motion = motion  # 状態を更新
+
+
+        # 顔検出
+        face = event.get("face_detected", False)
+
+        if face:
+            eyes_status = "寝ています💤" if event["eyes_closed"] else "目覚めました🐔"
+            orientation = event.get("orientation")
+            orientation_ja = {"frontal": "正面", "right": "右", "left": "左", "up" : "上", "down": "下"}
+            orientation = orientation_ja.get(orientation)
+            face_placeholder.success(f"ぺそちが{eyes_status}  {orientation}を向いているようです👀")
+
+        else:
+            face_placeholder.error("顔検出できません⚡")
 

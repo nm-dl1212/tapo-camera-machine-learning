@@ -9,6 +9,8 @@ import numpy as np
 import os
 from dotenv import load_dotenv
 
+from src.mesh_processing import extract_face_features
+
 if os.path.exists(".env"):
     load_dotenv()
 
@@ -20,7 +22,7 @@ app = FastAPI()
 motion_state = {"motion": False, "timestamp": None}
 
 
-def detect_motion(prev_frame, curr_frame, threshold=50, min_area=5000):
+def detect_motion(prev_frame, curr_frame, threshold=50, min_area=3000):
     """
     前フレームと現在フレームを比較して動体検知
     """
@@ -61,10 +63,12 @@ async def startup_event():
         async with httpx.AsyncClient() as client:
             while True:
                 try:
+                    # カメラサーバーからスナップショットを取得
                     resp = await client.get(f"{CAMERA_SERVER_URL}/snapshot", timeout=10)
                     arr = np.frombuffer(resp.content, dtype=np.uint8)
                     frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
-
+                    
+                    # 動体検知 (1つ前のフレームと差分をとる) 
                     if prev_frame is not None:
                         if detect_motion(prev_frame, frame):
                             motion_state = {
@@ -72,13 +76,25 @@ async def startup_event():
                                 "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
                             }
                         else:
-                            motion_state = {"motion": False, "timestamp": None}
+                            motion_state = {
+                                "motion": False, 
+                                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"
+                            )}
 
                     prev_frame = frame
+
+                    # 顔の特徴取得
+                    features = extract_face_features(frame)
+                    if features:
+                        motion_state.update({"face_detected": True})
+                        motion_state.update(features)
+                    else:
+                        motion_state.update({"face_detected": False})
+
                 except Exception as e:
                     motion_state = {"motion": False, "error": str(e)}
 
-                await asyncio.sleep(3)  # 3秒おきにチェック
+                await asyncio.sleep(10)  # チェック間隔(秒)
 
     # バックグラウンドで動体検知ジョブを開始
     asyncio.create_task(motion_detection_job())
@@ -88,7 +104,7 @@ async def event_generator():
     while True:
         event = json.dumps(motion_state, ensure_ascii=False)
         yield f"data: {event}\n\n"
-        await asyncio.sleep(1)
+        await asyncio.sleep(1)  # イベント送信間隔(秒)
 
 
 @app.get("/event")
